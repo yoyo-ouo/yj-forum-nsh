@@ -1,6 +1,24 @@
 {
   "name": "yj-forum-nsh",
-  "id": "com.example.yjforumnsh",
-  "version": "1.0.0",
-  "build": 1
+  "id": "top.yjlt.nsh",
+  "version": "0.1.0",
+  "build": 1,
+  "capabilities": {
+    "network": {
+      "http": [
+        {
+          "host": "127.0.0.1",
+          "schemes": ["http"],
+          "methods": ["GET"],
+          "pathPrefixes": ["/ov2/api"]
+        },
+        {
+          "host": "www.yjlt.top",
+          "schemes": ["https"],
+          "methods": ["GET"],
+          "pathPrefixes": ["/ov2/api"]
+        }
+      ]
+    }
+  }
 }

@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  nsh:
+    runs-on: ubuntu-latest
+    env:
+      # 钉住 CLI 版本：0.5.x 是 pre-1.0，升级需单独提交并重跑本地验证
+      NSH_VERSION: v0.5.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install nsh
+        run: |
+          curl -fsSL https://nsh.dev/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Show nsh version
+        run: nsh --version
+
+      - name: Type check
+        run: make nsh-check
+
+      - name: Headless tests
+        run: make nsh-test
