@@ -1,2 +1,14 @@
 .nsh/
 target/
+
+# nsh 签名与发布产物（root 私钥绝不入库）
+keys/
+*.secret
+*.nshpkg
+*.cert
+
+# 环境与编辑器
+.env
+.env.*
+.DS_Store
+Thumbs.db

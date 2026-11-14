@@ -48,13 +48,37 @@ tsconfig.json   继承 .nsh/tsconfig.json（把 nsh 解析到 .nsh/types）
 
 ## 接入论坛 API 前要做的配置
 
-`nsh.json` 目前没有 `capabilities`——独立应用不受限制；一旦以签名包下发或嵌入宿主，
-需要在 `capabilities.network` 里声明允许访问的主机：
+`nsh.json` 目前没有 `capabilities`。在 NSH 的能力模型里：
+
+- **未声明 = 全部放行**（任意 host 的 fetch、WebView、状态栏、剪贴板都不限制）；
+- **一旦声明，就只允许列出的事**，未列出的全部拒绝；
+- 能力声明对 `nsh run` / `nsh test` / 打包产物全部生效，不只是签名包；嵌入宿主时宿主只能在此基础上再收紧。
+
+因此建议接入 API 前先把能力写成「默认拒绝」，再按需展开，让每次权限扩张都成为一次可评审的 diff：
 
 ```json
 "capabilities": {
-  "network": { "hosts": ["forum.example.com"] }
+  "network": { "hosts": [] }
 }
 ```
+
+接入论坛 API 时按最小权限展开（域名、路径按实际替换）：
+
+```json
+"capabilities": {
+  "network": {
+    "http": [
+      {
+        "host": "www.yjlt.top",
+        "schemes": ["https"],
+        "methods": ["GET", "POST", "DELETE"],
+        "pathPrefixes": ["/ov2/api/"]
+      }
+    ]
+  }
+}
+```
+
+要点：不要用 `hosts: ["*"]`；`*.example.com` 不包含裸域；重定向由 NSH 逐跳校验；`webview` 只校验顶层导航，渲染用户富文本不要走 WebView。
 
 上线前还要把 `id`（当前 `com.example.yjforumnsh`）改成正式的应用 id。
