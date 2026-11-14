@@ -35,7 +35,13 @@ export function parseRoute(raw: string | null): Route {
 
   const post = path.match(/^\/posts\/([^/]+)\/?$/);
   if (post) {
-    const id = decodeURIComponent(post[1]);
+    let id = "";
+    try {
+      id = decodeURIComponent(post[1]);
+    } catch {
+      // 畸形百分号编码（深链是不可信输入）按未知路径处理，不能让启动崩溃。
+      return HOME;
+    }
     if (id) return { name: "post", id };
   }
 

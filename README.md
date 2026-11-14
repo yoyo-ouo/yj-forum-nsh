@@ -51,10 +51,10 @@ nsh run .          # 本机桌面窗口（Linux 上是 GTK）
 
 实现（[lib/router.ts](lib/router.ts)）：
 
-- 启动时 `UrlScheme.url()` 读地址 → `parseRoute()` 解析（完整 URL / 相对路径 / `yjlt://` 深链都支持）
+- 启动时 `UrlScheme.url()` 读地址 → `parseRoute()` 解析（完整 URL `/…` 路径 / `yjlt://` 深链；不带前导 `/` 的裸路径不支持）
 - 导航时 `route.set()` + `UrlScheme.setUrl(path, { history: "push" })`；分类切换用 `replace`，详情用 `push`
-- `UrlScheme.on("change")` 跟随浏览器后退/前进/手输地址
-- 每页用 `nsh/web` 的 `<Head>` 设置 `title` / `description` / `canonical`（原生端忽略）
+- `UrlScheme.on("change")` 与 `on("open")` 同时订阅：前者跟浏览后退/前进/手输地址，后者接原生热启动深链与「刷新后浏览器回到上一轮加载」的历史条目
+- 列表页用 `<Head>` 设 `title` / `description` / `canonical`，详情页设 `title` / `canonical`（原生端忽略）
 - 原生深链：`nsh.json` 声明 `"schemes": ["yjlt"]`，`yjlt://posts/<id>` 与 `yjlt://?category=talk` 都会解析
 
 ### 静态站点部署（重要）
@@ -65,7 +65,7 @@ nsh run .          # 本机桌面窗口（Linux 上是 GTK）
 | --- | --- |
 | nginx | `try_files $uri $uri/ /index.html;` |
 | Netlify | `_redirects` 写 `/* /index.html 200` |
-| Cloudflare Pages | 默认 SPA 回退 |
+| Cloudflare Pages | 默认 SPA 回退（前提：站点根目录没有 `404.html`） |
 
 **边界**：NSH 不是 SSR/SSG 框架，不会为每个路由预渲染 HTML；它提供的是客户端路由 + 正确的地址/标题/分享链接。需要搜索引擎拿到每页完整 HTML 时，得由服务端（如论坛本体的 Next.js）渲染壳。
 
@@ -109,10 +109,12 @@ nsh run .          # 本机桌面窗口（Linux 上是 GTK）
 ## 项目结构
 
 ```
-App.tsx              入口：列表 + 详情（mount(App)）
+App.tsx              入口：按路由渲染列表/详情（mount(App)）
+lib/routes.ts        路由纯函数（parseRoute / routePath / errorText）
+lib/router.ts        UrlScheme 同步（route / navigate / backToHome）
 lib/api.ts           /ov2/api 客户端与类型
 lib/format.ts        分类 / 时间 / HTML 实体与去标签（纯函数，可测）
-App.test.tsx         无头测试（纯函数 + 首页渲染）
+App.test.tsx         无头测试（纯函数 + 路由 + 深链/错误态）
 nsh.json             应用元数据与 capabilities（id: top.yjlt.nsh）
 Makefile             与 CI 共用的 nsh-check / nsh-test
 .github/workflows/   GitHub Actions（钉 NSH_VERSION=v0.5.1）

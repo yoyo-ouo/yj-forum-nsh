@@ -52,6 +52,83 @@ test("builds paths from routes", () => {
   expect(routePath({ name: "post", id: "PS 1" })).toBe("/posts/PS%201");
 });
 
+const LIST_STUB = {
+  "GET http://127.0.0.1:8090/ov2/api/posts?page=1&page_size=50": {
+    body: { success: true, posts: [], page: 1, page_size: 50 },
+  },
+};
+
+function postStub(id: string, title: string) {
+  return {
+    body: {
+      success: true,
+      post: {
+        id,
+        title,
+        content: "<p>正文</p>",
+        content_format: "html",
+        category: "talk",
+        likes: 0,
+        views: 0,
+        created_at: null,
+        published_at: "2026-01-01T00:00:00Z",
+        user_name: "测试",
+        user_avatar: "",
+        user_guild_name: "",
+        user_guild_theme_color: "",
+        user_is_leader: false,
+      },
+    },
+  };
+}
+
+test("malformed deep links fall back to home", () => {
+  expect(parseRoute("/posts/%")).toEqual({ name: "home", category: "" });
+  expect(parseRoute("/posts/%zz")).toEqual({ name: "home", category: "" });
+});
+
+test("opens a post from a cold deep link", async () => {
+  const app = await open("./App.tsx", {
+    urlScheme: "yjlt://posts/PS1",
+    network: {
+      ...LIST_STUB,
+      "GET http://127.0.0.1:8090/ov2/api/posts/PS1?include_comments=0": postStub(
+        "PS1",
+        "冷启动深链帖子",
+      ),
+    },
+  });
+  expect(app.texts()).toContain("冷启动深链帖子");
+});
+
+test("follows a deep link while running", async () => {
+  const app = await open("./App.tsx", {
+    network: {
+      ...LIST_STUB,
+      "GET http://127.0.0.1:8090/ov2/api/posts/PS2?include_comments=0": postStub(
+        "PS2",
+        "运行中深链帖子",
+      ),
+    },
+  });
+  await app.openWithUrl("yjlt://posts/PS2");
+  expect(app.texts()).toContain("运行中深链帖子");
+});
+
+test("shows a readable error for a missing post", async () => {
+  const app = await open("./App.tsx", {
+    urlScheme: "yjlt://posts/MISSING",
+    network: {
+      ...LIST_STUB,
+      "GET http://127.0.0.1:8090/ov2/api/posts/MISSING?include_comments=0": {
+        status: 404,
+        body: { success: false, message: "帖子不存在" },
+      },
+    },
+  });
+  expect(app.texts().join("\n")).toContain("帖子不存在");
+});
+
 test("renders the forum home", async () => {
   const app = await open("./App.tsx");
   expect(app.texts()).toContain("妖精论坛");

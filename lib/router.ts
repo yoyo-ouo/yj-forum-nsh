@@ -29,8 +29,16 @@ export function navigate(next: Route, replace = false): void {
 }
 
 // 浏览器后退/前进、手输地址：地址变了，路由跟着变。
-UrlScheme.on("change", ({ url }) => {
-  const next = parseRoute(url);
-  if (next.name === "home") lastHomeCategory = next.category;
-  if (!sameRoute(route(), next)) route.set(next);
-});
+function applyUrl(raw: string | null): void {
+  try {
+    const next = parseRoute(raw);
+    if (next.name === "home") lastHomeCategory = next.category;
+    if (!sameRoute(route(), next)) route.set(next);
+  } catch {
+    // 事件通道不能被畸形地址弄崩。
+  }
+}
+
+UrlScheme.on("change", ({ url }) => applyUrl(url));
+// `open`：原生热启动收到的深链，以及 Web 刷新后浏览器回到上一轮加载的历史条目。
+UrlScheme.on("open", ({ url }) => applyUrl(url));

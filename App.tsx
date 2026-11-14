@@ -9,7 +9,7 @@ import {
   formatTime,
   stripHtml,
 } from "./lib/format";
-import { backToHome, errorText, navigate, route } from "./lib/router";
+import { backToHome, errorText, navigate, route, routePath } from "./lib/router";
 
 const posts = resource(async ({ signal }) => {
   // 一次拉取首屏（后端按发布时间倒序），分类在本地过滤：
@@ -152,8 +152,12 @@ function DetailPage(props: { onBack: () => void }) {
   return (
     <View style={{ flex: 1, backgroundColor: token("background") }}>
       <Head
-        title={detail()?.title ?? "帖子详情 · 妖精论坛"}
-        canonical={postId() ? `/posts/${postId()}` : undefined}
+        title={
+          detail()?.id === postId()
+            ? detail()?.title ?? "帖子详情 · 妖精论坛"
+            : "帖子详情 · 妖精论坛"
+        }
+        canonical={postId() ? routePath({ name: "post", id: postId() ?? "" }) : undefined}
       />
       <View
         style={{
@@ -201,7 +205,7 @@ function DetailPage(props: { onBack: () => void }) {
               帖子加载失败：{errorText(detail.error())}
             </Text>
           </If>
-          <If when={detail()}>
+          <If when={detail()?.id === postId() ? detail() : null}>
             {(post) => (
               <View style={{ gap: 12 }}>
                 <Text
