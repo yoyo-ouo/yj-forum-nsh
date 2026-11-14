@@ -39,6 +39,36 @@ nsh run .          # 本机桌面窗口（Linux 上是 GTK）
 
 首次克隆后先跑一次 `make nsh-check`：`.nsh/` 是生成物（已被 git 忽略），会重新生成类型声明与 `tsconfig` 继承目标。
 
+## 路由（动态 URL）
+
+不是无地址的 SPA：每个页面有自己的地址，可直接打开、刷新、分享、前进后退。
+
+| URL | 页面 |
+| --- | --- |
+| `/` | 帖子列表 |
+| `/?category=talk` | 分类筛选（可分享） |
+| `/posts/:id` | 帖子详情（可分享/刷新） |
+
+实现（[lib/router.ts](lib/router.ts)）：
+
+- 启动时 `UrlScheme.url()` 读地址 → `parseRoute()` 解析（完整 URL / 相对路径 / `yjlt://` 深链都支持）
+- 导航时 `route.set()` + `UrlScheme.setUrl(path, { history: "push" })`；分类切换用 `replace`，详情用 `push`
+- `UrlScheme.on("change")` 跟随浏览器后退/前进/手输地址
+- 每页用 `nsh/web` 的 `<Head>` 设置 `title` / `description` / `canonical`（原生端忽略）
+- 原生深链：`nsh.json` 声明 `"schemes": ["yjlt"]`，`yjlt://posts/<id>` 与 `yjlt://?category=talk` 都会解析
+
+### 静态站点部署（重要）
+
+`nsh package --target web` 产出的是**单页** `index.html`；直接访问 `/posts/x` 需要服务器回退到它：
+
+| 主机 | 配置 |
+| --- | --- |
+| nginx | `try_files $uri $uri/ /index.html;` |
+| Netlify | `_redirects` 写 `/* /index.html 200` |
+| Cloudflare Pages | 默认 SPA 回退 |
+
+**边界**：NSH 不是 SSR/SSG 框架，不会为每个路由预渲染 HTML；它提供的是客户端路由 + 正确的地址/标题/分享链接。需要搜索引擎拿到每页完整 HTML 时，得由服务端（如论坛本体的 Next.js）渲染壳。
+
 ## 接入的接口
 
 前端只有一个只读 API 客户端：[lib/api.ts](lib/api.ts)。

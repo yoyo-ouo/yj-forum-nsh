@@ -1,4 +1,5 @@
-import { Scroll, Text, View, mount, resource, signal, token } from "nsh";
+import { Scroll, Text, View, computed, mount, resource, token } from "nsh";
+import { Head } from "nsh/web";
 import { fetchPost, fetchPosts, type PostListItem } from "./lib/api";
 import {
   CATEGORIES,
@@ -8,23 +9,40 @@ import {
   formatTime,
   stripHtml,
 } from "./lib/format";
+import { backToHome, errorText, navigate, route } from "./lib/router";
 
-const activeCategory = signal("");
-const selectedPost = signal<PostListItem | null>(null);
-
-const posts = resource(activeCategory, async (key, { signal }) => {
+const posts = resource(async ({ signal }) => {
   // 一次拉取首屏（后端按发布时间倒序），分类在本地过滤：
   // 历史数据同时存在英文 key（talk）与中文标签（闲聊），多值请求顺序会打乱列表。
   const result = await fetchPosts({ signal });
-  const option = CATEGORIES.find((item) => item.key === key);
-  const values = option?.values ?? [];
-  if (values.length === 0) return result.posts;
-  return result.posts.filter((post) => values.includes(post.category));
+  return result.posts;
 });
 
-const detail = resource(selectedPost, async (post, { signal }) => {
-  if (!post) return null;
-  return fetchPost(post.id, signal);
+const category = computed(() => {
+  const current = route();
+  return current.name === "home" ? current.category : "";
+});
+
+const categoryValues = computed(() => {
+  const option = CATEGORIES.find((item) => item.key === category());
+  return option?.values ?? [];
+});
+
+const visiblePosts = computed(() => {
+  const all = posts() ?? [];
+  const values = categoryValues();
+  if (values.length === 0) return all;
+  return all.filter((post) => values.includes(post.category));
+});
+
+const postId = computed(() => {
+  const current = route();
+  return current.name === "post" ? current.id : null;
+});
+
+const detail = resource(postId, async (id, { signal }) => {
+  if (!id) return null;
+  return fetchPost(id, signal);
 });
 
 function Chip(props: { label: string; active: boolean; onPress: () => void }) {
@@ -130,9 +148,13 @@ function PostCard(props: { post: PostListItem; onPress: () => void }) {
   );
 }
 
-function DetailPage(props: { post: PostListItem; onBack: () => void }) {
+function DetailPage(props: { onBack: () => void }) {
   return (
     <View style={{ flex: 1, backgroundColor: token("background") }}>
+      <Head
+        title={detail()?.title ?? "帖子详情 · 妖精论坛"}
+        canonical={postId() ? `/posts/${postId()}` : undefined}
+      />
       <View
         style={{
           flexDirection: "row",
@@ -171,35 +193,36 @@ function DetailPage(props: { post: PostListItem; onBack: () => void }) {
 
       <Scroll style={{ flex: 1 }}>
         <View style={{ paddingHorizontal: 16, paddingBottom: 40, gap: 12 }}>
-          <Text
-            style={{
-              fontSize: 23,
-              fontWeight: "700",
-              color: token("foreground"),
-              lineHeight: 31,
-            }}
-          >
-            {props.post.title}
-          </Text>
-          <Text style={{ fontSize: 13, color: token("muted-foreground") }}>
-            {props.post.user_name || "匿名"} ·{" "}
-            {formatTime(props.post.published_at || props.post.created_at)} ·{" "}
-            {categoryLabel(props.post.category)}
-          </Text>
-
           <If when={detail.loading()}>
             <Text style={{ fontSize: 14, color: token("muted-foreground") }}>正在加载正文…</Text>
           </If>
           <If when={detail.error()}>
             <Text style={{ fontSize: 14, color: token("destructive") }}>
-              正文加载失败：{String(detail.error())}
+              帖子加载失败：{errorText(detail.error())}
             </Text>
           </If>
           <If when={detail()}>
             {(post) => (
-              <Text style={{ fontSize: 15, lineHeight: 25, color: token("foreground") }}>
-                {stripHtml(post().content)}
-              </Text>
+              <View style={{ gap: 12 }}>
+                <Text
+                  style={{
+                    fontSize: 23,
+                    fontWeight: "700",
+                    color: token("foreground"),
+                    lineHeight: 31,
+                  }}
+                >
+                  {post().title}
+                </Text>
+                <Text style={{ fontSize: 13, color: token("muted-foreground") }}>
+                  {post().user_name || "匿名"} ·{" "}
+                  {formatTime(post().published_at || post().created_at)} ·{" "}
+                  {categoryLabel(post().category)}
+                </Text>
+                <Text style={{ fontSize: 15, lineHeight: 25, color: token("foreground") }}>
+                  {stripHtml(post().content)}
+                </Text>
+              </View>
             )}
           </If>
         </View>
@@ -211,12 +234,17 @@ function DetailPage(props: { post: PostListItem; onBack: () => void }) {
 function App() {
   return (
     <View style={{ flex: 1, backgroundColor: token("background") }}>
-      <If when={selectedPost()}>
-        {(post) => <DetailPage post={post()} onBack={() => selectedPost.set(null)} />}
+      <If when={route().name === "post"}>
+        <DetailPage onBack={() => navigate(backToHome(), true)} />
       </If>
 
-      <If when={!selectedPost()}>
+      <If when={route().name === "home"}>
         <View style={{ flex: 1 }}>
+          <Head
+            title={category() ? `${categoryLabel(category())} · 妖精论坛` : "妖精论坛"}
+            description="妖精论坛最新帖子"
+            canonical={category() ? `/?category=${category()}` : "/"}
+          />
           <View
             style={{
               flexDirection: "row",
@@ -264,8 +292,8 @@ function App() {
               {(item) => (
                 <Chip
                   label={item().label}
-                  active={activeCategory() === item().key}
-                  onPress={() => activeCategory.set(item().key)}
+                  active={category() === item().key}
+                  onPress={() => navigate({ name: "home", category: item().key }, true)}
                 />
               )}
             </Each>
@@ -284,7 +312,7 @@ function App() {
               }}
             >
               <Text style={{ fontSize: 13, color: token("destructive") }}>
-                刷新失败：{String(posts.error())}
+                刷新失败：{errorText(posts.error())}
               </Text>
               <View
                 onPress={() => posts.refetch()}
@@ -314,10 +342,14 @@ function App() {
                 <Text
                   style={{ fontSize: 14, color: token("destructive"), textAlign: "center" }}
                 >
-                  加载失败：{String(posts.error())}
+                  加载失败：{errorText(posts.error())}
                 </Text>
               </If>
-              <If when={!posts.loading() && !posts.error() && (posts()?.length ?? 0) === 0}>
+              <If
+                when={
+                  !posts.loading() && !posts.error() && visiblePosts().length === 0
+                }
+              >
                 <Text
                   style={{
                     fontSize: 14,
@@ -326,13 +358,16 @@ function App() {
                     paddingVertical: 24,
                   }}
                 >
-                  这里还没有帖子
+                  {category() ? "这个分类还没有帖子" : "这里还没有帖子"}
                 </Text>
               </If>
 
-              <Each of={posts() ?? []}>
+              <Each of={visiblePosts()}>
                 {(item) => (
-                  <PostCard post={item()} onPress={() => selectedPost.set(item())} />
+                  <PostCard
+                    post={item()}
+                    onPress={() => navigate({ name: "post", id: item().id })}
+                  />
                 )}
               </Each>
             </View>

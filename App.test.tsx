@@ -1,5 +1,6 @@
 import { expect, open, test } from "nsh/test";
 import { categoryColor, categoryLabel, excerpt, formatTime, stripHtml } from "./lib/format";
+import { parseRoute, routePath } from "./lib/routes";
 
 test("labels categories", () => {
   expect(categoryLabel("question")).toBe("求助");
@@ -29,6 +30,26 @@ test("formats relative time", () => {
   expect(formatTime(new Date(now - 30_000).toISOString())).toBe("刚刚");
   expect(formatTime(new Date(now - 5 * 60_000).toISOString())).toBe("5 分钟前");
   expect(formatTime("")).toBe("");
+});
+
+test("parses routes from web URLs and deep links", () => {
+  expect(parseRoute(null)).toEqual({ name: "home", category: "" });
+  expect(parseRoute("/")).toEqual({ name: "home", category: "" });
+  expect(parseRoute("/?category=talk")).toEqual({ name: "home", category: "talk" });
+  expect(parseRoute("/?category=unknown")).toEqual({ name: "home", category: "" });
+  expect(parseRoute("/unknown/path")).toEqual({ name: "home", category: "" });
+  expect(parseRoute("/posts/PS123")).toEqual({ name: "post", id: "PS123" });
+  expect(parseRoute("http://127.0.0.1:8790/posts/PS123?x=1")).toEqual({
+    name: "post",
+    id: "PS123",
+  });
+  expect(parseRoute("yjlt://posts/PS 1")).toEqual({ name: "post", id: "PS 1" });
+});
+
+test("builds paths from routes", () => {
+  expect(routePath({ name: "home", category: "" })).toBe("/");
+  expect(routePath({ name: "home", category: "talk" })).toBe("/?category=talk");
+  expect(routePath({ name: "post", id: "PS 1" })).toBe("/posts/PS%201");
 });
 
 test("renders the forum home", async () => {
