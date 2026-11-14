@@ -16,13 +16,20 @@ const CATEGORY_COLORS: Record<string, string> = {
   creative: "#8b5cf6",
 };
 
-export const CATEGORIES: { key: string; label: string }[] = [
-  { key: "", label: "全部" },
-  { key: "general", label: "综合" },
-  { key: "talk", label: "闲聊" },
-  { key: "question", label: "求助" },
-  { key: "share", label: "分享" },
-  { key: "creative", label: "创作" },
+export interface CategoryOption {
+  key: string;
+  label: string;
+  /** 后端实际使用的分类值：历史数据同时存在英文 key 与中文标签，需要多值合并。 */
+  values: string[];
+}
+
+export const CATEGORIES: CategoryOption[] = [
+  { key: "", label: "全部", values: [] },
+  { key: "general", label: "综合", values: ["general", "综合"] },
+  { key: "talk", label: "闲聊", values: ["talk", "闲聊"] },
+  { key: "question", label: "求助", values: ["question", "求助"] },
+  { key: "share", label: "分享", values: ["share", "分享"] },
+  { key: "creative", label: "创作", values: ["creative", "创意"] },
 ];
 
 export function categoryLabel(category?: string): string {
@@ -35,18 +42,7 @@ export function categoryColor(category?: string): string {
   return CATEGORY_COLORS[category] ?? CATEGORY_COLORS.general;
 }
 
-/** 把 HTML 实体还原成字符（先于 stripHtml 使用，避免把转义后的标签文本原样展示）。 */
-export function decodeEntities(input: string): string {
-  return input
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&");
-}
-
-/** 把帖子/评论正文（HTML 或 Markdown 残留）转成可读纯文本。 */
+/** 把帖子/评论正文（HTML 或 Markdown 残留）转成可读纯文本。实体在去标签之后解码（后端 summary 保留实体）。 */
 export function stripHtml(input: string): string {
   return input
     .replace(/<br\s*\/?>/gi, "\n")
@@ -82,9 +78,10 @@ export function formatTime(value?: string | null): string {
   return `${y}-${m}-${d}`;
 }
 
-/** 摘要裁剪：压缩空白，超长加省略号。 */
+/** 摘要裁剪：压缩空白，按 Unicode 码点截断（不切坏 emoji），超长加省略号。 */
 export function excerpt(text: string, max = 120): string {
   const clean = text.replace(/\s+/g, " ").trim();
-  if (clean.length <= max) return clean;
-  return `${clean.slice(0, max)}…`;
+  const chars = Array.from(clean);
+  if (chars.length <= max) return clean;
+  return `${chars.slice(0, max).join("")}…`;
 }

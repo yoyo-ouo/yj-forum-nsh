@@ -8,7 +8,7 @@
 
 ## 现在能做什么
 
-- 读取论坛 `/ov2/api` 的公开帖子列表（分类筛选 + 下拉刷新）
+- 读取论坛 `/ov2/api` 的公开帖子列表（分类筛选支持中英文历史分类值合并 + 下拉刷新，单次最多 50 条）
 - 点开帖子详情（标题 / 作者 / 时间 / 正文纯文本）
 - 浅色 / 深色跟随系统主题
 
@@ -48,10 +48,12 @@ nsh run .          # 本机桌面窗口（Linux 上是 GTK）
 | canonical base | `/ov2/api` |
 | 开发 | `http://127.0.0.1:8090/ov2/api`（本机 `make dev`） |
 | 生产 | `https://www.yjlt.top/ov2/api` |
-| 列表 | `GET /posts?page&page_size&category` → `{success, posts[], page, page_size}` |
+| 列表 | `GET /posts?page&page_size&category` → `{success, posts[], page, page_size}`（默认拉 50 条，暂无加载更多） |
 | 详情 | `GET /posts/:id?include_comments=0` → `{success, post}` |
 
-`lib/api.ts` 顶部的 `API_BASE` 目前指向本机；发版前改成生产地址（或在构建时替换）。
+`lib/api.ts` 顶部的 `USE_LOCAL_API` 控制地址：`true` 指本机（开发），**发版前改为 `false`**（生产 `https://www.yjlt.top/ov2/api`）。
+
+分类筛选：历史数据里同时存在英文 key（`talk`）与中文标签（`闲聊`）。客户端一次拉取首屏（最多 50 条，后端按发布时间倒序），在本地按分类多值过滤，避免多请求打乱顺序。
 
 ### 能力声明（capabilities）
 

@@ -1,5 +1,5 @@
 import { expect, open, test } from "nsh/test";
-import { categoryColor, categoryLabel, decodeEntities, excerpt, formatTime, stripHtml } from "./lib/format";
+import { categoryColor, categoryLabel, excerpt, formatTime, stripHtml } from "./lib/format";
 
 test("labels categories", () => {
   expect(categoryLabel("question")).toBe("求助");
@@ -13,10 +13,10 @@ test("strips html into readable text", () => {
   expect(stripHtml("<b>加粗</b> &amp; 符号")).toBe("加粗 & 符号");
 });
 
-test("decodes entities before stripping", () => {
-  expect(decodeEntities("ddd&lt;script&gt;&lt;/script&gt;")).toBe("ddd<script></script>");
-  expect(stripHtml(decodeEntities("ddd&lt;script&gt;&lt;/script&gt;"))).toBe("ddd");
-  expect(stripHtml(decodeEntities("a &amp; b"))).toBe("a & b");
+test("strips html and decodes entities once", () => {
+  expect(stripHtml("ddd&lt;script&gt;&lt;/script&gt;")).toBe("ddd<script></script>");
+  expect(stripHtml("a &lt; b and c &gt; d")).toBe("a < b and c > d");
+  expect(stripHtml("a &amp; b")).toBe("a & b");
 });
 
 test("clips long excerpts", () => {
